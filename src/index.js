@@ -1,14 +1,19 @@
 const  express = require('express')
+const morgan = require('morgan')
 const app = express()
+require('dotenv').config()
+// Connect Database
+require('./config/connectDB')
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-
+const Router = require('./routes')
 const port = process.env.PORT || 3000
 
-app.use('/',(req, res)=>{
-    res.status(200).send('OK')
-})
+app.use(morgan('dev'))
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: false }))
+
+
+Router(app)
 
 app.listen(port, () => {
     console.log(`Servere is running: 3000`);
