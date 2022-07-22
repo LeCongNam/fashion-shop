@@ -3,11 +3,15 @@ const convert = require('../../helper/convert')
 const bcrypt = require('bcrypt');
 
 
-class User {
-    async getAllUser() {
-        let sql = 'select  * from food'
-        let data = await poolQuery(sql, [1])
+class Product {
+    async getProductByPage(page) {
+        if(!page) return Promise.reject(false)
+        let limit = 10
+        let start = (page - 1) * limit
+        let sql = 'SELECT * FROM booking_care.food limit ? offset ?'
+        let data = await poolQuery(sql, [limit, start])
         return Promise.all(data)
+       
     }
 
     async getSingleUser(userName, password) {
@@ -84,4 +88,4 @@ class User {
 }
 
 
-module.exports = new User()
+module.exports = new Product()

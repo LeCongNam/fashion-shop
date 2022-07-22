@@ -1,24 +1,27 @@
 const redis = require('../config/redis')
-const userModel = require('../model/user/user')
+const productModel = require('../model/product/product')
 
 class HomeController {
     async homePage(req, res){
         try {
-            let listUser = await redis.get('listUser')
-            
-            if (listUser != null) {
+            let page = req.query.page
+            let listProduct = await redis.get(`listProduct${page}`)
+            if (listProduct != null) {
                return res.json({
-                    data: JSON.parse(listUser)
+                    data: JSON.parse(listProduct)
                 })
             }
-            let data = await  userModel.getAllUser()
-            await redis.set('listUser', JSON.stringify(data))
+            let data = await  productModel.getProductByPage(page)
+            await redis.set(`listProduct${page}`, JSON.stringify(data))
             res.json({
+                status: 200,
+                message: "Success",
                 data: data
             })
         } catch (error) {
+            console.log("[homePage]: ",error);
             res.status(400).json({
-                err: 'Cannot get User'
+                err: 'Cannot get Product'
             })
         }
     }

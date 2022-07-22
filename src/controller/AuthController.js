@@ -1,6 +1,7 @@
 const userModel = require('../model/user/user')
 const token = require('../helper/general_jwt')
 const sendMailBySystem = require('../helper/send_mail')
+const bcrypt = require('bcrypt');
 
 class AuthController {
     async login(req, res) {
@@ -8,43 +9,63 @@ class AuthController {
         let check = true
         check = user_name && password
         if (!check) return res.status(400).json({ message: 'Missing Key in Body' })
-        let user = await userModel.getSingleUser(user_name, password)
-        let { access_token, refresh_token } = token.generalToken()
-        if (user && user_name == user.user_name && password == user.password) {
-            return res.json({
-                messasage: 'Login Successfully',
-                data: {
-                    user_id: user.id,
-                    user_name: user.user_name,
-                    email: user.email,
-                    access_token,
-                    refresh_token,
+        try {
+            let user = await userModel.getSingleUser(user_name, password)
+            if (Object.keys(user).length > 0) {
+                const match = await bcrypt.compare(password, user.password);
+                if (match) {
+                    let { access_token, refresh_token } = token.generalToken()
+                    return res.json({
+                        messasage: 'Login Successfully',
+                        data: {
+                            user_id: user.id,
+                            user_name: user.user_name,
+                            email: user.email,
+                            access_token,
+                            refresh_token,
+                        }
+                    })
                 }
+            }
+            return res.status(400).json({
+                messasage: 'UserName or password Invalid',
+            })
+
+        } catch (err) {
+            console.log(err);
+            return res.status(400).json({
+                messasage: 'Something Error! Try Again',
             })
         }
-
-        return res.status(400).json({
-            messasage: 'UserName or password Invalid',
-        })
 
     }
 
     async register(req, res) {
-        let user_name = req.body.user_name || null
-        let password = req.body.password || null
-        let email = req.body.email || null
+        let user_name = req.body.user_name
+        let email = req.body.email
+        let fullname = req.body.fullname
+        let display_name = req.body.display_name
+        let user_role_id = req.body.user_role_id
+        let phone = req.body.phone
+        let address = req.body.address
+        let password = req.body.password
+
 
         let check = true
-        check = user_name && password && email
+        check = user_name && password && email && display_name && fullname
         if (!check) return res.status(400).json({ message: 'Missing Key in Body' })
 
+        user_role_id = user_role_id ? user_role_id : 2
+
         let dataRegister = {
-            user_name: user_name,
-            password: password,
-            email: email,
-            fullname: req.body.fullname || null,
-            phone: req.body.phone || null,
-            address: req.body.address || null
+            user_name,
+            password,
+            email,
+            fullname,
+            phone,
+            address,
+            display_name,
+            user_role_id
         }
 
         try {
@@ -54,7 +75,7 @@ class AuthController {
                 messasage: 'Reister Successfully',
             })
         } catch (error) {
-            console.log(error)
+            console.log("Error register: ", error)
             return res.status(400).json({
                 status: 400,
                 messasage: 'Register Failed',
@@ -64,9 +85,11 @@ class AuthController {
     }
 
     async forgotPassword(req, res) {
+        console.log(`[SendMail]:forgotPassword()`);
+        let email = req.body.email
         let secretCodeRandom = (Math.random() * 999999).toFixed()
         setTimeout(() => {
-            userModel.saveScretCode(forgotPassword)
+            userModel.saveScretCode(secretCodeRandom, email)
         }, 1000);
         await sendMailBySystem(secretCodeRandom)
         return res.json({
@@ -75,16 +98,26 @@ class AuthController {
     }
 
     async changePassword(req, res) {
-        let userSecretCode = req.body.code | null
-        let userId = req.body.user_id | null
-        let newPassword = req.body.newPassword | null
+        let userSecretCode = req.body.code
+        let newPassword = req.body.newPassword
+
+        let check = true
+        check = userSecretCode && newPassword
+        if (!check) return res.status(400).json({ message: 'Missing Key in Body' })
 
         try {
-            let codeBySystem = await userModel.getUserScretCode(userId)
-            console.log(codeBySystem);
-            return res.json({
-                messasage: 'ChangePassword Successfully!'
-            })
+            let codeBySystem = await userModel.getUserScretCode(userSecretCode)
+            if (codeBySystem[0]) {
+                await userModel.updatePassword(id, newPassword)
+                return res.json({
+                    messasage: 'ChangePassword Successfully!'
+                })
+            } else {
+                return res.status(401).json({
+                    messasage: 'ChangePassword Failed!'
+                })
+            }
+
         } catch (error) {
             console.log(error)
             return res.status(401).json({
